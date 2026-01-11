@@ -19,10 +19,17 @@ celery==5.3.6
 # OpenAI
 openai==1.10.0
 
-# 视频/音频处理（Python绑定，需要系统安装FFmpeg）
-# ffmpeg-python==0.2.0
+# 视频/音频处理
+ffmpeg-python==0.2.0  # FFmpeg Python 绑定
+srt==3.5.3  # SRT 字幕解析
+aiofiles==23.2.1  # 异步文件操作
 
-# 文本转语音
+# Whisper 语音识别（使用 whisper 而不是 openai-whisper）
+whisper  # 本地 Whisper 模型
+torch>=2.0.0  # PyTorch（支持 GPU 加速）
+# 注意：如果使用 GPU，需要安装 CUDA Toolkit
+
+# 文本转语音（可选）
 # edge-tts==6.1.9
 
 # 工具库

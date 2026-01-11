@@ -165,6 +165,81 @@ Content-Type: application/json
 }
 ```
 
+## 视频处理功能
+
+系统提供完整的视频处理流水线，支持：
+
+1. **视频上传**：自动保存并提取元数据
+2. **音频提取**：使用 FFmpeg 提取音频
+3. **字幕生成**：使用本地 **Whisper** 模型生成中英文对照字幕
+4. **AI 增强**：使用 GPT-4 进行批量翻译、音标标注和语法分析
+5. **异步处理**：基于 Celery 的后台任务队列，支持进度查询
+
+### 依赖配置
+
+**1. 系统依赖**
+- **FFmpeg**: 必需，用于音视频处理
+  ```bash
+  # macOS
+  brew install ffmpeg
+  # Ubuntu
+  sudo apt-get install ffmpeg
+  ```
+
+- **GPU 支持 (可选但推荐)**:
+  - 安装 NVIDIA 驱动
+  - 安装 CUDA Toolkit (11.8 或 12.x)
+
+**2. Python 依赖**
+```bash
+pip install -r requirements.txt
+```
+> 注意：`whisper` 包会在首次运行时自动下载模型（默认 medium 模型约 1.5GB）。
+
+**3. 服务依赖**
+- **Redis**: 用于 Celery 消息队列
+- **PostgreSQL**: 数据库
+
+### 部署指南
+
+推荐使用 Docker Compose 启动基础设施：
+
+```bash
+# 启动数据库和 Redis
+./db.sh start
+# 或
+docker compose up -d
+
+# 初始化数据库
+alembic upgrade head
+
+# 启动 API 服务
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# 启动 Celery Worker (处理异步任务)
+celery -A app.core.celery_app worker --loglevel=info
+```
+
+### 视频 API 接口
+
+#### 1. 上传视频
+```bash
+POST /api/v1/videos/upload
+Content-Type: multipart/form-data
+# file: 视频文件
+# title: 标题
+```
+
+#### 2. 查询处理状态
+```bash
+GET /api/v1/videos/{video_id}/status
+```
+
+#### 3. 获取字幕（含语法分析）
+```bash
+GET /api/v1/videos/{video_id}/subtitles?include_grammar=true
+```
+
 ## 开发指南
 
 ### 代码规范
@@ -198,15 +273,14 @@ flake8 app/
 ```
 
 ## 下一步计划
-
+- [x] 集成 OpenAI API ✅
+- [x] 实现视频 CRUD API ✅
+- [x] 实现视频处理流程（FFmpeg + Whisper）✅
+- [x] 添加数据库迁移 ✅
+- [x] Docker 容器化部署 (DB & Redis) ✅
 - [ ] 实现用户认证和授权
 - [ ] 添加单词本 CRUD API
 - [ ] 添加文章 CRUD API
-- [ ] 添加视频 CRUD API
-- [x] 集成 OpenAI API ✅
-- [ ] 实现视频处理流程（FFmpeg + Whisper）
-- [ ] 添加数据库迁移
-- [ ] Docker 容器化部署
 
 ## 许可证
 

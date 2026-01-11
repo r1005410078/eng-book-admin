@@ -30,6 +30,15 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE: int = 2147483648  # 2GB
     
+    # 视频处理配置
+    FFMPEG_PATH: str = "ffmpeg"  # FFmpeg 可执行文件路径
+    WHISPER_MODEL_NAME: str = "medium"  # 默认 Whisper 模型
+    WHISPER_CACHE_DIR: str = "~/.cache/whisper"  # 模型缓存目录
+    
+    # Celery 配置
+    CELERY_BROKER_URL: Optional[str] = None
+    CELERY_RESULT_BACKEND: Optional[str] = None
+    
     # JWT配置
     SECRET_KEY: str = "your-secret-key-change-this-in-production"
     ALGORITHM: str = "HS256"

@@ -195,6 +195,137 @@ class OpenAIService:
         except Exception as e:
             raise Exception(f"生词提取失败: {str(e)}")
     
+    async def batch_translate_text(
+        self,
+        texts: List[str],
+        target_language: str = "中文",
+        model: str = "gpt-4",
+        batch_size: int = 10
+    ) -> List[str]:
+        """
+        批量翻译文本
+        
+        Args:
+            texts: 待翻译文本列表
+            target_language: 目标语言
+            model: 模型
+            batch_size: 每批处理数量
+            
+        Returns:
+            翻译结果列表（顺序与输入对应）
+        """
+        import asyncio
+        
+        results = [""] * len(texts)
+        
+        # 将文本分组处理
+        for i in range(0, len(texts), batch_size):
+            batch_texts = texts[i:i + batch_size]
+            batch_indices = list(range(i, i + len(batch_texts)))
+            
+            # 创建并发任务
+            tasks = []
+            for text in batch_texts:
+                tasks.append(self.translate_text(text, target_language, model))
+            
+            # 并发执行
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # 处理结果
+            for j, result in enumerate(batch_results):
+                index = batch_indices[j]
+                if isinstance(result, Exception):
+                    print(f"Error translating text at index {index}: {result}")
+                    results[index] = ""
+                else:
+                    results[index] = result
+                    
+        return results
+
+    async def batch_generate_phonetic(
+        self,
+        texts: List[str],
+        accent: str = "美式",
+        model: str = "gpt-4",
+        batch_size: int = 10
+    ) -> List[str]:
+        """
+        批量生成音标
+        
+        Args:
+            texts: 待处理文本列表
+            accent: 口音
+            model: 模型
+            batch_size: 每批处理数量
+            
+        Returns:
+            音标结果列表
+        """
+        import asyncio
+        
+        results = [""] * len(texts)
+        
+        for i in range(0, len(texts), batch_size):
+            batch_texts = texts[i:i + batch_size]
+            batch_indices = list(range(i, i + len(batch_texts)))
+            
+            tasks = []
+            for text in batch_texts:
+                tasks.append(self.generate_phonetic(text, accent, model))
+            
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            for j, result in enumerate(batch_results):
+                index = batch_indices[j]
+                if isinstance(result, Exception):
+                    print(f"Error generating phonetic at index {index}: {result}")
+                    results[index] = ""
+                else:
+                    results[index] = result
+                    
+        return results
+
+    async def batch_analyze_grammar(
+        self,
+        texts: List[str],
+        model: str = "gpt-4",
+        batch_size: int = 5
+    ) -> List[Optional[Dict[str, Any]]]:
+        """
+        批量分析语法
+        
+        Args:
+            texts: 待分析文本列表
+            model: 模型
+            batch_size: 每批处理数量（语法分析更耗时，建议批次较小）
+            
+        Returns:
+            分析结果列表
+        """
+        import asyncio
+        
+        results = [None] * len(texts)
+        
+        for i in range(0, len(texts), batch_size):
+            batch_texts = texts[i:i + batch_size]
+            batch_indices = list(range(i, i + len(batch_texts)))
+            
+            tasks = []
+            for text in batch_texts:
+                tasks.append(self.analyze_grammar(text, model))
+            
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            for j, result in enumerate(batch_results):
+                index = batch_indices[j]
+                if isinstance(result, Exception):
+                    print(f"Error analyzing grammar at index {index}: {result}")
+                    results[index] = None
+                else:
+                    results[index] = result
+                    
+        return results
+
     def test_connection(self) -> bool:
         """
         测试 OpenAI API 连接

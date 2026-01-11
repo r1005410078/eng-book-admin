@@ -1,31 +1,351 @@
-# Project Context
+# 项目上下文
 
-## Purpose
-[Describe your project's purpose and goals]
+## 项目目的
+这是一个英语学习应用的管理后台系统，用于管理和创建英语学习内容。系统支持多种类型的学习资源管理，包括单词本、英语文章和英语视频。特别是视频处理功能，能够自动将上传的电影或语音分解为视频/语音、字幕文件，并提供中文翻译、音标标注、语法难点解析等功能，帮助内容创作者高效地制作高质量的英语学习材料。
 
-## Tech Stack
-- [List your primary technologies]
-- [e.g., TypeScript, React, Node.js]
+## 技术栈
 
-## Project Conventions
+### 后端技术
+- **Python 3.8+** - 主要编程语言
+- **FastAPI** - 现代化的高性能 Web 框架
+- **OpenAI API** - 用于AI翻译、语法解析等智能功能
+- **FFmpeg** - 视频/音频处理和转换
+- **FFprobe** - 媒体文件信息提取
+- **edge-tts** - 文本转语音服务
+- **SQLAlchemy** - ORM 数据库操作
+- **Pydantic** - 数据验证和设置管理
+- **Alembic** - 数据库迁移工具
 
-### Code Style
-[Describe your code style preferences, formatting rules, and naming conventions]
+### 数据库
+- **PostgreSQL** 或 **MySQL** - 主数据库
+- **Redis** - 缓存和任务队列
 
-### Architecture Patterns
-[Document your architectural decisions and patterns]
+### 其他工具
+- **Celery** - 异步任务处理（视频处理等耗时操作）
+- **Docker** - 容器化部署
+- **Nginx** - 反向代理和静态文件服务
 
-### Testing Strategy
-[Explain your testing approach and requirements]
+## 核心功能
 
-### Git Workflow
-[Describe your branching strategy and commit conventions]
+### 1. 单词本管理（CRUD）
+- 创建单词本（名称、描述、难度级别）
+- 添加/编辑/删除单词条目
+- 单词信息包括：
+  - 英文单词
+  - 音标
+  - 中文释义
+  - 例句
+  - 词性
+  - 难度等级
+- 批量导入单词（CSV/Excel）
+- 单词本分类和标签管理
 
-## Domain Context
-[Add domain-specific knowledge that AI assistants need to understand]
+### 2. 英语文章管理（CRUD）
+- 上传和创建英语文章
+- 文章元数据：
+  - 标题
+  - 作者
+  - 难度级别
+  - 分类/标签
+  - 发布状态
+- 文章内容编辑器（富文本）
+- 自动提取文章中的生词
+- 语法难点标注
+- 文章翻译（段落级别）
+- 文章预览和发布
 
-## Important Constraints
-[List any technical, business, or regulatory constraints]
+### 3. 英语视频管理（CRUD）
+- 上传视频/音频文件
+- 视频元数据管理：
+  - 标题
+  - 描述
+  - 难度级别
+  - 分类/标签
+  - 时长
+  - 缩略图
+- 自动视频处理流程
+- 字幕管理和编辑
+- 翻译内容管理
+- 音标和语法解析管理
+- 视频预览和发布
 
-## External Dependencies
-[Document key external services, APIs, or systems]
+## 用户故事
+
+### 主要用户故事：视频内容创作
+**作为**内容创作者，  
+**我想要**上传一部英语电影或语音文件，  
+**以便**系统自动处理并生成可编辑的学习材料。
+
+#### 详细流程：
+
+1. **上传阶段**
+   - 用户上传视频/音频文件
+   - 填写基本信息（标题、描述、难度等）
+   - 系统开始异步处理任务
+
+2. **自动处理阶段**
+   - 使用 FFmpeg 提取音频轨道
+   - 使用 FFprobe 获取媒体信息（时长、分辨率等）
+   - 使用 OpenAI Whisper API 进行语音识别，生成英文字幕
+   - 生成字幕文件（SRT/VTT格式）
+   - 使用 OpenAI API 进行中文翻译
+   - 对每个句子进行音标标注
+   - 使用 AI 分析语法难点和重点词汇
+
+3. **内容生成**
+   系统自动生成以下内容：
+   - **视频文件**：原始视频或转码后的视频
+   - **音频文件**：提取的音频轨道
+   - **字幕文件**：时间轴对齐的英文字幕
+   - **翻译内容**：每句话的中文翻译
+   - **音标标注**：每个句子的音标
+   - **语法解析**：
+     - 句子结构分析
+     - 重点语法点标注
+     - 难点词汇解释
+     - 常用短语提取
+
+4. **二次编辑阶段**
+   用户可以对生成的内容进行调整：
+   - 修正字幕文本和时间轴
+   - 调整翻译内容
+   - 修改音标标注
+   - 补充或修改语法解析
+   - 添加学习笔记和提示
+   - 标记重点片段
+
+5. **审核发布**
+   - 预览最终效果
+   - 设置发布状态（草稿/已发布）
+   - 发布到学习平台
+
+## 项目约定
+
+### 代码风格
+- 遵循 **PEP 8** Python 代码规范
+- 使用 **Black** 进行代码格式化
+- 使用 **isort** 进行导入排序
+- 使用 **Flake8** 进行代码检查
+- 使用 **mypy** 进行类型检查
+- 函数和类必须有完整的中文文档字符串
+- 变量命名使用英文，注释使用中文
+
+### 命名约定
+- **文件名**：小写字母，下划线分隔（snake_case）
+- **类名**：大驼峰命名（PascalCase）
+- **函数名**：小写字母，下划线分隔（snake_case）
+- **常量**：全大写，下划线分隔（UPPER_CASE）
+- **API路由**：RESTful 风格，使用复数名词
+
+### API 设计规范
+- 使用 RESTful API 设计原则
+- 统一的响应格式：
+  ```json
+  {
+    "code": 200,
+    "message": "成功",
+    "data": {}
+  }
+  ```
+- 统一的错误处理
+- API 版本控制（/api/v1/）
+- 使用 JWT 进行身份认证
+- 请求参数验证使用 Pydantic models
+
+## 架构模式
+
+### 整体架构
+采用**分层架构**模式：
+
+```
+┌─────────────────────────────────────┐
+│         API Layer (FastAPI)         │
+│    (路由、请求处理、响应格式化)        │
+└─────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────┐
+│       Service Layer (业务逻辑)       │
+│   (核心业务逻辑、数据处理、AI调用)     │
+└─────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────┐
+│    Repository Layer (数据访问)       │
+│      (数据库操作、ORM 封装)           │
+└─────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────┐
+│         Database (PostgreSQL)       │
+└─────────────────────────────────────┘
+```
+
+### 异步任务处理
+- 使用 **Celery** 处理耗时任务（视频处理、AI分析）
+- 使用 **Redis** 作为消息队列
+- 任务状态追踪和进度更新
+- 失败重试机制
+
+### 文件存储
+- 本地存储或云存储（OSS/S3）
+- 分类存储：视频、音频、字幕、缩略图
+- CDN 加速静态资源访问
+
+### 目录结构
+```
+eng-book-admin/
+├── app/
+│   ├── api/              # API 路由
+│   │   ├── v1/
+│   │   │   ├── vocabulary.py    # 单词本相关API
+│   │   │   ├── article.py       # 文章相关API
+│   │   │   └── video.py         # 视频相关API
+│   ├── core/             # 核心配置
+│   │   ├── config.py
+│   │   ├── security.py
+│   │   └── deps.py
+│   ├── models/           # 数据库模型
+│   ├── schemas/          # Pydantic 模型
+│   ├── services/         # 业务逻辑层
+│   │   ├── video_processor.py   # 视频处理服务
+│   │   ├── ai_service.py        # AI 服务封装
+│   │   └── subtitle_service.py  # 字幕处理服务
+│   ├── repositories/     # 数据访问层
+│   ├── tasks/            # Celery 任务
+│   └── utils/            # 工具函数
+├── tests/                # 测试文件
+├── alembic/              # 数据库迁移
+├── docker/               # Docker 配置
+└── requirements.txt      # 依赖列表
+```
+
+## 测试策略
+
+### 测试类型
+- **单元测试**：使用 pytest，覆盖核心业务逻辑
+- **集成测试**：测试 API 端点和数据库交互
+- **端到端测试**：测试完整的视频处理流程
+- **性能测试**：测试大文件处理和并发请求
+
+### 测试覆盖率
+- 目标代码覆盖率：≥ 80%
+- 核心业务逻辑覆盖率：≥ 90%
+
+### 测试工具
+- **pytest** - 测试框架
+- **pytest-cov** - 覆盖率报告
+- **pytest-asyncio** - 异步测试支持
+- **httpx** - API 测试客户端
+
+## Git 工作流
+
+### 分支策略
+- **main** - 生产环境分支
+- **develop** - 开发分支
+- **feature/** - 功能分支
+- **bugfix/** - 修复分支
+- **hotfix/** - 紧急修复分支
+
+### 提交规范
+使用 Conventional Commits 规范：
+- `feat:` 新功能
+- `fix:` 修复bug
+- `docs:` 文档更新
+- `style:` 代码格式调整
+- `refactor:` 重构
+- `test:` 测试相关
+- `chore:` 构建/工具链相关
+
+示例：`feat: 添加视频自动字幕生成功能`
+
+## 领域知识
+
+### 视频处理流程
+1. **视频格式支持**：MP4, AVI, MOV, MKV, WebM
+2. **音频格式支持**：MP3, WAV, M4A, AAC
+3. **字幕格式**：SRT, VTT, ASS
+4. **视频转码**：统一转为 H.264/AAC 编码的 MP4
+
+### AI 服务集成
+- **OpenAI Whisper**：语音转文字（字幕生成）
+- **OpenAI GPT-4**：翻译、语法分析、难点解析
+- **备用方案**：支持其他 AI 服务（如百度、阿里云）
+
+### 音标系统
+- 使用国际音标（IPA）
+- 支持美式和英式发音标注
+
+## 重要约束
+
+### 技术约束
+- Python 版本：≥ 3.8
+- FastAPI 版本：≥ 0.100.0
+- 视频文件大小限制：≤ 2GB（可配置）
+- 并发处理任务数：根据服务器资源配置
+
+### 业务约束
+- 视频处理时间：取决于视频长度和服务器性能
+- AI API 调用频率限制：遵循 OpenAI API 限制
+- 存储空间管理：定期清理临时文件
+
+### 安全约束
+- 所有 API 需要身份认证
+- 文件上传需要类型和大小验证
+- 防止恶意文件上传
+- 敏感信息加密存储
+
+## 外部依赖
+
+### 必需的外部服务
+1. **OpenAI API**
+   - 用途：语音识别、翻译、语法分析
+   - 需要：API Key
+   - 文档：https://platform.openai.com/docs
+
+2. **FFmpeg**
+   - 用途：视频/音频处理
+   - 安装：系统级安装
+   - 版本：≥ 4.0
+
+3. **Redis**
+   - 用途：缓存、任务队列
+   - 版本：≥ 6.0
+
+4. **数据库**
+   - PostgreSQL ≥ 12 或 MySQL ≥ 8.0
+
+### 可选的外部服务
+- **对象存储**：阿里云 OSS / AWS S3 / MinIO
+- **CDN**：用于加速视频和静态资源访问
+- **监控服务**：Sentry（错误追踪）、Prometheus（性能监控）
+
+## 部署说明
+
+### 环境变量配置
+```bash
+# 数据库配置
+DATABASE_URL=postgresql://user:password@localhost/dbname
+
+# Redis 配置
+REDIS_URL=redis://localhost:6379/0
+
+# OpenAI 配置
+OPENAI_API_KEY=your_api_key_here
+
+# 文件存储配置
+UPLOAD_DIR=/path/to/uploads
+MAX_UPLOAD_SIZE=2147483648  # 2GB
+
+# JWT 配置
+SECRET_KEY=your_secret_key_here
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+```
+
+### Docker 部署
+项目支持 Docker 容器化部署，包含：
+- FastAPI 应用容器
+- Celery Worker 容器
+- PostgreSQL 容器
+- Redis 容器
+- Nginx 容器
+
+使用 `docker-compose up -d` 一键启动所有服务。

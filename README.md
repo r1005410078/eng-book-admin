@@ -121,6 +121,50 @@ curl http://localhost:8000/api/v1/hello/张三
 GET /api/v1/health
 ```
 
+### OpenAI 接口
+
+#### 1. 查看配置
+```bash
+GET /api/v1/openai/config
+```
+
+#### 2. 测试连接
+```bash
+GET /api/v1/openai/test
+```
+
+#### 3. 翻译文本
+```bash
+POST /api/v1/openai/translate
+Content-Type: application/json
+
+{
+  "text": "Hello World",
+  "target_language": "中文"
+}
+```
+
+#### 4. 语法分析
+```bash
+POST /api/v1/openai/grammar
+Content-Type: application/json
+
+{
+  "sentence": "I have been studying English for three years."
+}
+```
+
+#### 5. 生成音标
+```bash
+POST /api/v1/openai/phonetic
+Content-Type: application/json
+
+{
+  "text": "Hello World",
+  "accent": "美式"
+}
+```
+
 ## 开发指南
 
 ### 代码规范
@@ -159,8 +203,8 @@ flake8 app/
 - [ ] 添加单词本 CRUD API
 - [ ] 添加文章 CRUD API
 - [ ] 添加视频 CRUD API
-- [ ] 集成 OpenAI API
-- [ ] 实现视频处理流程
+- [x] 集成 OpenAI API ✅
+- [ ] 实现视频处理流程（FFmpeg + Whisper）
 - [ ] 添加数据库迁移
 - [ ] Docker 容器化部署
 

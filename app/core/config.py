@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     REDIS_URL: Optional[str] = None
     
     # OpenAI配置
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
     OPENAI_API_KEY: Optional[str] = None
     
     # 文件上传配置

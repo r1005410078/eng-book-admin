@@ -5,7 +5,7 @@ from celery import Celery
 from app.core.config import settings
 
 celery_app = Celery(
-    "eng_book_admin",
+    "worker",
     broker=settings.CELERY_BROKER_URL or settings.REDIS_URL,
     backend=settings.CELERY_RESULT_BACKEND or settings.CELERY_BROKER_URL or settings.REDIS_URL,
     include=[
@@ -18,8 +18,22 @@ celery_app.conf.update(
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
-    timezone="Asia/Shanghai",
+    timezone="UTC",
     enable_utc=True,
+    broker_connection_retry_on_startup=True,
+    # 增加 Redis 连接稳定性配置
+    broker_transport_options={
+        "visibility_timeout": 3600,
+        "max_retries": 3,
+        "interval_start": 0,
+        "interval_step": 0.2,
+        "interval_max": 0.5,
+    },
+    result_backend_transport_options={
+        "retry_policy": {
+            "timeout": 5.0
+        }
+    },
     # 任务配置
     task_acks_late=True,  # 任务完成后才确认
     task_reject_on_worker_lost=True,  # worker 丢失时拒绝任务（重新入队）

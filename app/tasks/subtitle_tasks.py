@@ -39,29 +39,12 @@ def update_task_progress(
             task.started_at = datetime.utcnow()
         db.commit()
 
-@celery_app.task(bind=True, name="app.tasks.subtitle_tasks.enhance_video_subtitles")
-def enhance_video_subtitles(self, video_id: int):
+async def enhance_subtitles_content(video_id: int):
     """
-    增强视频字幕：
-    1. 翻译
-    2. 音标生成
-    3. 语法分析
-    
-    使用 asyncio 获取并发处理能力
+    增强视频字幕内容的核心异步逻辑
     """
-    logger.info(f"Start enhancing subtitles for video {video_id}")
+    logger.info(f"Start enhancing subtitles content for video {video_id}")
     
-    # 由于 Celery worker 默认是同步的，我们需要手动运行异步代码
-    loop = asyncio.get_event_loop()
-    if loop.is_closed():
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    
-    loop.run_until_complete(_process_enhancements(video_id))
-    logger.info(f"Finished enhancing subtitles for video {video_id}")
-
-async def _process_enhancements(video_id: int):
-    """实际执行增强逻辑的异步函数"""
     db = SessionLocal()
     try:
         video = db.query(Video).filter(Video.id == video_id).first()
@@ -78,9 +61,7 @@ async def _process_enhancements(video_id: int):
             db.commit()
             return
 
-        # ---------------------------------------------------------------------
         # 1. 任务：翻译
-        # ---------------------------------------------------------------------
         trans_task = ProcessingTask(
             video_id=video_id,
             task_type=TaskType.TRANSLATION,
@@ -107,9 +88,7 @@ async def _process_enhancements(video_id: int):
             update_task_progress(db, trans_task.id, 0, TaskStatus.FAILED, str(e))
             # 继续执行其他任务，不中断
 
-        # ---------------------------------------------------------------------
         # 2. 任务：音标
-        # ---------------------------------------------------------------------
         phonetic_task = ProcessingTask(
             video_id=video_id,
             task_type=TaskType.PHONETIC,
@@ -134,9 +113,7 @@ async def _process_enhancements(video_id: int):
             logger.error(f"Phonetic generation failed: {e}")
             update_task_progress(db, phonetic_task.id, 0, TaskStatus.FAILED, str(e))
 
-        # ---------------------------------------------------------------------
         # 3. 任务：语法分析
-        # ---------------------------------------------------------------------
         grammar_task = ProcessingTask(
             video_id=video_id,
             task_type=TaskType.GRAMMAR_ANALYSIS,
@@ -161,9 +138,28 @@ async def _process_enhancements(video_id: int):
                         db.add(grammar)
                     
                     grammar.sentence_structure = analysis_data.get("sentence_structure")
-                    grammar.grammar_points = analysis_data.get("grammar_points")
+                    # 确保 grammar_points 是字符串列表
+                    grammar_points = analysis_data.get("grammar_points", [])
+                    if isinstance(grammar_points, list):
+                        grammar.grammar_points = [
+                            str(gp) if not isinstance(gp, str) else gp 
+                            for gp in grammar_points
+                        ]
+                    else:
+                        grammar.grammar_points = []
+                        
                     grammar.difficult_words = analysis_data.get("difficult_words")
-                    grammar.phrases = analysis_data.get("phrases")
+                    
+                    # 确保 phrases 是字符串列表
+                    phrases = analysis_data.get("phrases", [])
+                    if isinstance(phrases, list):
+                        grammar.phrases = [
+                            str(p) if not isinstance(p, str) else p 
+                            for p in phrases
+                        ]
+                    else:
+                        grammar.phrases = []
+
                     grammar.explanation = analysis_data.get("explanation")
             
             db.commit()
@@ -174,23 +170,60 @@ async def _process_enhancements(video_id: int):
             update_task_progress(db, grammar_task.id, 0, TaskStatus.FAILED, str(e))
 
         # ---------------------------------------------------------------------
-        # 完成所有流程
+        # 保存双语字幕文件
         # ---------------------------------------------------------------------
+        from app.utils.file_handler import file_handler
+        from app.utils.srt_parser import SRTParser
+        
+        # 将 SQLAlchemy 对象转换为字典列表以便生成 SRT
+        sub_dicts = []
+        for sub in subtitles:
+            sub_dicts.append({
+                "sequence_number": sub.sequence_number,
+                "start_time": sub.start_time,
+                "end_time": sub.end_time,
+                "original_text": sub.original_text,
+                "translation": sub.translation
+            })
+            
+        srt_content = SRTParser.generate_srt(sub_dicts, dual_language=True)
+        srt_path = file_handler.get_subtitle_path(video.id)
+        
+        # 覆盖原文件
+        with open(srt_path, "w", encoding="utf-8") as f:
+            f.write(srt_content)
+            
+        logger.info(f"Updated bilingual subtitles file for video {video_id}")
+
+        # 完成所有流程
         video.status = VideoStatus.COMPLETED
         db.commit()
         logger.info(f"All processing completed for video {video_id}")
 
     except Exception as e:
-        logger.error(f"Error in enhance_video_subtitles: {e}")
-        # 只有在非常严重的错误下才标记视频失败，否则尽量已完成的部分为准
+        logger.error(f"Error in enhance_subtitles_content: {e}")
         try:
             video = db.query(Video).filter(Video.id == video_id).first()
             if video:
-                # 检查是否有任何任务成功了，如果有，可能不应该完全标记为 failed
-                # 简单起见，如果这里崩溃了，标记为 FAILED
                 video.status = VideoStatus.FAILED
                 db.commit()
         except:
             pass
     finally:
         db.close()
+
+@celery_app.task(bind=True, name="app.tasks.subtitle_tasks.enhance_video_subtitles")
+def enhance_video_subtitles(self, video_id: int):
+    """
+    增强视频字幕（Celery 任务包装器）
+    """
+    logger.info(f"Start enhancing subtitles for video {video_id}")
+    
+    # Celery worker 同步环境中运行异步代码
+    loop = asyncio.get_event_loop()
+    if loop.is_closed():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    loop.run_until_complete(enhance_subtitles_content(video_id))
+    logger.info(f"Finished enhancing subtitles for video {video_id}")

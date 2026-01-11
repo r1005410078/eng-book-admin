@@ -74,13 +74,13 @@ class OpenAIService:
 句子: {sentence}
 
 请返回以下信息：
-1. sentence_structure: 句子结构类型（简单句/复合句/复杂句）
-2. grammar_points: 重点语法点列表
-3. difficult_words: 难点词汇及解释
-4. phrases: 常用短语列表
-5. explanation: 整体语法解释
+1. sentence_structure: 句子结构类型（简单句/复合句/复杂句，必须用中文）
+2. grammar_points: 重点语法点列表（解释内容必须用中文）
+3. difficult_words: 难点词汇及解释（解释必须用中文）
+4. phrases: 常用短语列表（解释必须用中文）
+5. explanation: 整体语法解释（必须用中文）
 
-请严格按照JSON格式返回，不要添加其他内容。
+请严格按照JSON格式返回，不要添加其他内容。确保所有解释性文字都是简体中文。
 """
             response = self.client.chat.completions.create(
                 model=model,
@@ -94,12 +94,20 @@ class OpenAIService:
                         "content": prompt
                     }
                 ],
-                temperature=0.3,
-                response_format={"type": "json_object"}
+                temperature=0.3
             )
             
             import json
-            result = json.loads(response.choices[0].message.content)
+            content = response.choices[0].message.content.strip()
+            # 移除可能存在的 Markdown 代码块标记
+            if content.startswith("```"):
+                content = content.split("\n", 1)[1]
+                if content.endswith("```"):
+                    content = content.rsplit("\n", 1)[0]
+            if content.startswith("json"):
+                content = content[4:].strip()
+                
+            result = json.loads(content)
             return result
         except Exception as e:
             raise Exception(f"语法分析失败: {str(e)}")
@@ -166,11 +174,11 @@ class OpenAIService:
 对于每个生词，请提供：
 1. word: 单词
 2. phonetic: 音标
-3. definition: 中文释义
-4. part_of_speech: 词性
+3. definition: 中文释义（必须用中文）
+4. part_of_speech: 词性（如：名词、动词等，必须用中文）
 5. example: 例句
 
-请以JSON数组格式返回，不要添加其他内容。
+请以JSON数组格式返回，不要添加其他内容。确保除英文单词/例句外，其他解释均使用简体中文。
 """
             response = self.client.chat.completions.create(
                 model=model,
@@ -184,12 +192,20 @@ class OpenAIService:
                         "content": prompt
                     }
                 ],
-                temperature=0.3,
-                response_format={"type": "json_object"}
+                temperature=0.3
             )
             
             import json
-            result = json.loads(response.choices[0].message.content)
+            content = response.choices[0].message.content.strip()
+            # 移除可能存在的 Markdown 代码块标记
+            if content.startswith("```"):
+                content = content.split("\n", 1)[1]
+                if content.endswith("```"):
+                    content = content.rsplit("\n", 1)[0]
+            if content.startswith("json"):
+                content = content[4:].strip()
+
+            result = json.loads(content)
             # 假设返回的JSON有一个 "vocabulary" 键
             return result.get("vocabulary", [])
         except Exception as e:

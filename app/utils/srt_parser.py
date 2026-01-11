@@ -107,23 +107,28 @@ class SRTParser:
         return seconds
 
     @staticmethod
-    def generate_srt(subtitles: List[Dict[str, Any]]) -> str:
+    def generate_srt(subtitles: List[Dict[str, Any]], dual_language: bool = False) -> str:
         """
         生成 SRT 文本
         
         Args:
             subtitles: 字幕字典列表
+            dual_language: 是否包含翻译（双语）
             
         Returns:
             str: SRT 格式文本
         """
         srt_subs = []
         for sub in subtitles:
+            content = sub['original_text']
+            if dual_language and sub.get('translation'):
+                content = f"{content}\n{sub['translation']}"
+            
             srt_sub = srt.Subtitle(
                 index=sub.get('sequence_number', 0),
                 start=timedelta(seconds=float(sub['start_time'])),
                 end=timedelta(seconds=float(sub['end_time'])),
-                content=sub['original_text']
+                content=content
             )
             srt_subs.append(srt_sub)
             

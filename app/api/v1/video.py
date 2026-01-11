@@ -12,12 +12,61 @@ from app.models.processing_task import ProcessingTask
 from app.models.subtitle import Subtitle
 from app.models.grammar_analysis import GrammarAnalysis
 from app.schemas.video import VideoCreate, VideoResponse, VideoListResponse, VideoUpdate
-from app.schemas.subtitle import ProcessingTaskResponse, SubtitleWithGrammarResponse
+from app.schemas.subtitle import ProcessingTaskResponse
+from app.schemas.grammar import SubtitleWithGrammarResponse
 from app.utils.file_handler import file_handler
-from app.tasks.video_tasks import process_uploaded_video
-from app.tasks.subtitle_tasks import enhance_video_subtitles
+from app.tasks.video_tasks import process_uploaded_video, process_video_content
+from app.tasks.subtitle_tasks import enhance_video_subtitles, enhance_subtitles_content
 
 router = APIRouter()
+
+# ... (省略中间代码) ...
+
+@router.post("/{video_id}/run_sync")
+async def run_sync_processing(video_id: int, db: Session = Depends(get_db)):
+    """
+    [调试用] 同步运行所有处理任务（不经过 Celery）
+    包含：音频提取 -> 字幕生成 -> AI 增强
+    注意：这可能需要较长时间，会导致请求超时
+    """
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="视频不存在")
+        
+    # 清除旧的任务记录和字幕
+    db.query(ProcessingTask).filter(ProcessingTask.video_id == video_id).delete()
+    db.query(Subtitle).filter(Subtitle.video_id == video_id).delete()
+    
+    video.status = VideoStatus.PROCESSING
+    db.commit()
+    
+    # 1. 运行视频处理内容 (trigger_next_task=False)
+    process_video_content(video_id, trigger_next_task=False)
+    
+    # 检查第一阶段结果
+    db.refresh(video)
+    if video.status == VideoStatus.FAILED:
+        failed_task = db.query(ProcessingTask).filter(
+            ProcessingTask.video_id == video_id, 
+            ProcessingTask.status == TaskStatus.FAILED
+        ).first()
+        error_msg = failed_task.error_message if failed_task else "未知错误"
+        return {"message": f"视频处理失败: {error_msg}", "status": "failed"}
+        
+    # 检查是否生成了字幕
+    subtitle_count = db.query(Subtitle).filter(Subtitle.video_id == video_id).count()
+    if subtitle_count == 0:
+        video.status = VideoStatus.COMPLETED
+        db.commit()
+        return {"message": "处理完成，但未识别到任何字幕", "status": "completed"}
+    
+    # 2. 运行字幕增强内容 (async)
+    await enhance_subtitles_content(video_id)
+    
+    # 重新获取视频状态
+    db.refresh(video)
+    
+    return {"message": "处理完成", "status": video.status}
 
 
 @router.post("/upload", response_model=VideoResponse)
@@ -199,11 +248,11 @@ def get_video_subtitles(
         
     query = db.query(Subtitle).filter(Subtitle.video_id == video_id).order_by(Subtitle.sequence_number)
     
+    if include_grammar:
+        # 如果需要语法分析，使用 joinedload 预加载关联数据
+        from sqlalchemy.orm import joinedload
+        query = query.options(joinedload(Subtitle.grammar_analysis))
+    
     subtitles = query.all()
     
-    if include_grammar:
-        # 如果需要语法分析，确保加载关系（虽然 ORM lazy load 会做，但显式连接更高效）
-        # 这里 Pydantic 会自动处理来自 relationship 的数据
-        pass
-        
     return subtitles

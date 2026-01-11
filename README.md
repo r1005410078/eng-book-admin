@@ -240,6 +240,12 @@ GET /api/v1/videos/{video_id}/status
 GET /api/v1/videos/{video_id}/subtitles?include_grammar=true
 ```
 
+#### 4. [调试] 同步运行全流程
+```bash
+POST /api/v1/videos/{video_id}/run_sync
+```
+> 注意：此接口会在当前请求中串行执行所有耗时任务，可能会导致超时，仅建议调试或处理短视频时使用。
+
 ## 开发指南
 
 ### 代码规范

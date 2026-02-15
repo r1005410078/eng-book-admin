@@ -48,6 +48,19 @@ class UnitUpdate(BaseModel):
     description: Optional[str] = None
     order_index: Optional[int] = None
 
+# --- Reorder Schemas ---
+
+class OrderItem(BaseModel):
+    """单个排序项"""
+    unit_id: Optional[int] = None
+    lesson_id: Optional[int] = None
+    order_index: int
+
+class ReorderRequest(BaseModel):
+    """批量排序请求"""
+    items: List[OrderItem]
+
+
 class LessonUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None

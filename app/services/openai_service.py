@@ -344,6 +344,34 @@ class OpenAIService:
                     
         return results
 
+    async def answer_syntax_question(self, question: str, context: Optional[str] = None, model: str = "gpt-4") -> str:
+        """
+        回答用于提出的语法问题
+        """
+        try:
+            messages = [
+                {
+                    "role": "system", 
+                    "content": "你是一个专业的英语语法老师。请用中文回答用户关于英语句子的问题。回答要通过解释语法点来帮助用户理解，语气亲切。"
+                }
+            ]
+            
+            user_content = f"问题: {question}"
+            if context:
+                user_content = f"上下文句子: {context}\n\n{user_content}"
+                
+            messages.append({"role": "user", "content": user_content})
+            
+            response = await self.client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.5
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            logger.error(f"语法问答失败: {str(e)}")
+            raise Exception(f"Failed to answer question: {str(e)}")
+
     async def test_connection(self) -> bool:
         """
         测试 OpenAI API 连接

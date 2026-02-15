@@ -14,3 +14,8 @@ class LearningStatusResponse(BaseModel):
     progress_percent_total: int
     last_accessed_lesson_id: Optional[int]
     is_completed: bool
+
+class AskQuestionRequest(BaseModel):
+    question: str = Field(..., description="用户的语法问题")
+    context_text: Optional[str] = Field(None, description="相关的上下文文本（句子）")
+    subtitle_id: Optional[int] = Field(None, description="关联的字幕ID")

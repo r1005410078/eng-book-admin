@@ -169,8 +169,9 @@ def get_lesson_subtitles(lesson_id: int, db: Session = Depends(get_db)):
     )
 
 from fastapi import Header
-from app.schemas.learning import ProgressUpdate
+from app.schemas.learning import ProgressUpdate, AskQuestionRequest
 from app.services.learning_service import LearningService
+from app.services.openai_service import openai_service
 
 @router.post("/{lesson_id}/progress", summary="上报学习进度")
 def report_lesson_progress(
@@ -197,3 +198,28 @@ def report_lesson_progress(
         position=progress.last_position_seconds
     )
     return {"message": "Progress updated", "status": result.status}
+
+@router.post("/{lesson_id}/ask-syntax", summary="语法提问")
+async def ask_syntax_question(
+    lesson_id: int,
+    request: AskQuestionRequest,
+    x_user_id: int = Header(..., description="User ID"),
+    db: Session = Depends(get_db)
+):
+    """
+    针对当前课时内容/句子进行语法提问 (调用 OpenAI)
+    """
+    # Verify lesson
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+        
+    try:
+        answer = await openai_service.answer_syntax_question(
+            question=request.question,
+            context=request.context_text
+        )
+        return {"answer": answer}
+    except Exception as e:
+        logger.error(f"Ask syntax failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get answer from AI")

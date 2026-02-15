@@ -78,3 +78,43 @@ def test_learning_flow(db_session):
         assert data["last_accessed_lesson_id"] in [l1.id, l2.id] 
     finally:
         app.dependency_overrides.clear()
+
+from unittest.mock import AsyncMock, patch
+
+def test_ask_syntax(db_session):
+    # Override dependency
+    app.dependency_overrides[get_db] = lambda: db_session
+    
+    try:
+        # 1. Setup Data
+        c = Course(title="Syntax Course")
+        db_session.add(c); db_session.flush()
+        u = Unit(course_id=c.id, title="Syntax Unit")
+        db_session.add(u); db_session.flush()
+        l = Lesson(unit_id=u.id, title="Syntax Lesson", processing_status="READY")
+        db_session.add(l)
+        db_session.commit()
+        
+        # 2. Mock OpenAI Service
+        # Note: We patch where it is IMPORTED in the module under test!
+        with patch("app.api.v1.lessons.openai_service.answer_syntax_question", new_callable=AsyncMock) as mock_ask:
+            mock_ask.return_value = "这是一个简单句。"
+            
+            resp = client.post(
+                f"{settings.API_V1_PREFIX}/lessons/{l.id}/ask-syntax",
+                json={"question": "分析这个句子", "context_text": "I run fast."},
+                headers={"x-user-id": "1"}
+            )
+            
+            assert resp.status_code == 200, f"Error: {resp.text}"
+            data = resp.json()
+            assert data["answer"] == "这是一个简单句。"
+            
+            # Verify Mock Call
+            mock_ask.assert_called_once()
+            args, kwargs = mock_ask.call_args
+            assert kwargs['question'] == "分析这个句子"
+            assert kwargs['context'] == "I run fast."
+            
+    finally:
+        app.dependency_overrides.clear()

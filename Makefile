@@ -11,7 +11,11 @@ install:  ## 安装依赖
 
 run:  ## 启动开发服务器
 	@echo "🚀 启动开发服务器..."
-	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	@set -a && [ -f .env ] && . .env && set +a && uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+
+worker:  ## 启动 Celery Worker (单进程模式)
+	@echo "⚙️  启动 Celery Worker (Concurrency: 1)..."
+	@set -a && [ -f .env ] && . .env && set +a && celery -A app.core.celery_app worker --loglevel=info -c 1
 
 test:  ## 运行测试
 	@echo "🧪 运行测试..."

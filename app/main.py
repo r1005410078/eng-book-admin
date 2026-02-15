@@ -28,6 +28,17 @@ app.add_middleware(
 # 注册API路由
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
+from fastapi.staticfiles import StaticFiles
+import os
+
+# 确保上传目录存在
+if not os.path.exists(settings.UPLOAD_DIR):
+    os.makedirs(settings.UPLOAD_DIR)
+
+# 挂载静态文件目录 (用于访问上传的视频/图片)
+# 注意: 生产环境建议使用 Nginx
+app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+
 
 @app.get("/", tags=["根路径"])
 async def root():

@@ -2,16 +2,20 @@
 OpenAI 服务封装
 """
 from typing import Optional, List, Dict, Any
-from openai import OpenAI
+from openai import AsyncOpenAI
 from app.core.config import settings
+import logging
+import json
+import asyncio
 
+logger = logging.getLogger(__name__)
 
 class OpenAIService:
     """OpenAI API 服务封装类"""
     
     def __init__(self):
         """初始化 OpenAI 客户端"""
-        self.client = OpenAI(
+        self.client = AsyncOpenAI(
             base_url=settings.OPENAI_BASE_URL,
             api_key=settings.OPENAI_API_KEY
         )
@@ -34,7 +38,7 @@ class OpenAIService:
             翻译后的文本
         """
         try:
-            response = self.client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model=model,
                 messages=[
                     {
@@ -50,6 +54,7 @@ class OpenAIService:
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
+            logger.error(f"翻译失败: {str(e)}")
             raise Exception(f"翻译失败: {str(e)}")
     
     async def analyze_grammar(
@@ -82,7 +87,7 @@ class OpenAIService:
 
 请严格按照JSON格式返回，不要添加其他内容。确保所有解释性文字都是简体中文。
 """
-            response = self.client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model=model,
                 messages=[
                     {
@@ -97,7 +102,6 @@ class OpenAIService:
                 temperature=0.3
             )
             
-            import json
             content = response.choices[0].message.content.strip()
             # 移除可能存在的 Markdown 代码块标记
             if content.startswith("```"):
@@ -110,6 +114,7 @@ class OpenAIService:
             result = json.loads(content)
             return result
         except Exception as e:
+            logger.error(f"语法分析失败: {str(e)}")
             raise Exception(f"语法分析失败: {str(e)}")
     
     async def generate_phonetic(
@@ -130,7 +135,9 @@ class OpenAIService:
             带音标的文本
         """
         try:
-            response = self.client.chat.completions.create(
+            # logger.info(f"Generating phonetic for: {text[:50]}...")
+            
+            response = await self.client.chat.completions.create(
                 model=model,
                 messages=[
                     {
@@ -146,6 +153,7 @@ class OpenAIService:
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
+            logger.error(f"音标生成失败: {str(e)}")
             raise Exception(f"音标生成失败: {str(e)}")
     
     async def extract_vocabulary(
@@ -180,7 +188,7 @@ class OpenAIService:
 
 请以JSON数组格式返回，不要添加其他内容。确保除英文单词/例句外，其他解释均使用简体中文。
 """
-            response = self.client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model=model,
                 messages=[
                     {
@@ -195,7 +203,6 @@ class OpenAIService:
                 temperature=0.3
             )
             
-            import json
             content = response.choices[0].message.content.strip()
             # 移除可能存在的 Markdown 代码块标记
             if content.startswith("```"):
@@ -209,6 +216,7 @@ class OpenAIService:
             # 假设返回的JSON有一个 "vocabulary" 键
             return result.get("vocabulary", [])
         except Exception as e:
+            logger.error(f"生词提取失败: {str(e)}")
             raise Exception(f"生词提取失败: {str(e)}")
     
     async def batch_translate_text(
@@ -230,8 +238,6 @@ class OpenAIService:
         Returns:
             翻译结果列表（顺序与输入对应）
         """
-        import asyncio
-        
         results = [""] * len(texts)
         
         # 将文本分组处理
@@ -251,7 +257,7 @@ class OpenAIService:
             for j, result in enumerate(batch_results):
                 index = batch_indices[j]
                 if isinstance(result, Exception):
-                    print(f"Error translating text at index {index}: {result}")
+                    logger.error(f"Error translating text at index {index}: {result}")
                     results[index] = ""
                 else:
                     results[index] = result
@@ -277,8 +283,6 @@ class OpenAIService:
         Returns:
             音标结果列表
         """
-        import asyncio
-        
         results = [""] * len(texts)
         
         for i in range(0, len(texts), batch_size):
@@ -294,7 +298,7 @@ class OpenAIService:
             for j, result in enumerate(batch_results):
                 index = batch_indices[j]
                 if isinstance(result, Exception):
-                    print(f"Error generating phonetic at index {index}: {result}")
+                    logger.error(f"Error generating phonetic at index {index}: {result}")
                     results[index] = ""
                 else:
                     results[index] = result
@@ -318,8 +322,6 @@ class OpenAIService:
         Returns:
             分析结果列表
         """
-        import asyncio
-        
         results = [None] * len(texts)
         
         for i in range(0, len(texts), batch_size):
@@ -335,14 +337,14 @@ class OpenAIService:
             for j, result in enumerate(batch_results):
                 index = batch_indices[j]
                 if isinstance(result, Exception):
-                    print(f"Error analyzing grammar at index {index}: {result}")
+                    logger.error(f"Error analyzing grammar at index {index}: {result}")
                     results[index] = None
                 else:
                     results[index] = result
                     
         return results
 
-    def test_connection(self) -> bool:
+    async def test_connection(self) -> bool:
         """
         测试 OpenAI API 连接
         
@@ -350,7 +352,7 @@ class OpenAIService:
             连接是否成功
         """
         try:
-            response = self.client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "user", "content": "Hello"}
@@ -359,7 +361,7 @@ class OpenAIService:
             )
             return True
         except Exception as e:
-            print(f"OpenAI API 连接失败: {str(e)}")
+            logger.error(f"OpenAI API 连接失败: {str(e)}")
             return False
 
 

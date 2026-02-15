@@ -1,8 +1,17 @@
 """
 Celery 应用配置
 """
+import logging
 from celery import Celery
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+# Debug: Print actual configuration values
+print(f"🔍 Celery Config Debug:")
+print(f"  REDIS_URL: {settings.REDIS_URL}")
+print(f"  CELERY_BROKER_URL: {settings.CELERY_BROKER_URL}")
+print(f"  CELERY_RESULT_BACKEND: {settings.CELERY_RESULT_BACKEND}")
 
 celery_app = Celery(
     "worker",
@@ -11,6 +20,7 @@ celery_app = Celery(
     include=[
         "app.tasks.video_tasks",
         "app.tasks.subtitle_tasks",
+        "app.tasks.course_tasks",
     ]
 )
 

@@ -33,12 +33,12 @@
   - 确保无回归
 
 ## Phase 3: 移除 Videos 接口
-- [ ] 3.1 从 `app/api/v1/router.py` 移除 video router
+- [x] 3.1 从 `app/api/v1/router.py` 移除 video router
   - 删除 `from app.api.v1 import video`
   - 删除 `api_router.include_router(video.router, ...)`
-- [ ] 3.2 删除 `app/api/v1/video.py` 文件
+- [x] 3.2 删除 `app/api/v1/video.py` 文件
   - 移除整个文件（应用未使用）
-- [ ] 3.3 更新 API 文档
+- [x] 3.3 更新 API 文档
   - 移除 Videos 相关文档
   - 更新 Lesson 接口文档
 

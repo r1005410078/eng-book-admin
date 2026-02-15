@@ -220,31 +220,115 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 celery -A app.core.celery_app worker --loglevel=info
 ```
 
-### 视频 API 接口
+### 课程和课时 API 接口
 
-#### 1. 上传视频
+#### 1. 上传课程（包含视频）
 ```bash
-POST /api/v1/videos/upload
+POST /api/v1/courses/upload
 Content-Type: multipart/form-data
-# file: 视频文件
-# title: 标题
+
+# title: 课程标题
+# description: 课程描述
+# files: 视频文件列表（支持多个）
 ```
 
-#### 2. 查询处理状态
-```bash
-GET /api/v1/videos/{video_id}/status
+响应示例：
+```json
+{
+  "id": 1,
+  "title": "英语口语课程",
+  "description": "日常英语口语练习",
+  "units": [
+    {
+      "id": 1,
+      "title": "Unit 1",
+      "lessons": [
+        {
+          "id": 1,
+          "title": "Lesson 1",
+          "video_id": 1,
+          "processing_status": "PROCESSING"
+        }
+      ]
+    }
+  ]
+}
 ```
 
-#### 3. 获取字幕（含语法分析）
+#### 2. 查询课程处理进度
 ```bash
-GET /api/v1/videos/{video_id}/subtitles?include_grammar=true
+GET /api/v1/courses/{course_id}/progress
 ```
 
-#### 4. [调试] 同步运行全流程
-```bash
-POST /api/v1/videos/{video_id}/run_sync
+响应示例：
+```json
+{
+  "course_id": 1,
+  "lessons": [
+    {
+      "lesson_id": 1,
+      "processing_status": "COMPLETED",
+      "progress_percent": 100,
+      "logs": [
+        {
+          "step_name": "AUDIO_EXTRACTION",
+          "action": "COMPLETE",
+          "created_at": "2026-02-15T12:00:00Z"
+        }
+      ]
+    }
+  ]
+}
 ```
-> 注意：此接口会在当前请求中串行执行所有耗时任务，可能会导致超时，仅建议调试或处理短视频时使用。
+
+#### 3. 获取课时字幕（含语法分析）
+```bash
+GET /api/v1/lessons/{lesson_id}/subtitles
+```
+
+响应示例：
+```json
+{
+  "lesson_id": 1,
+  "video_id": 1,
+  "subtitle_count": 10,
+  "subtitles": [
+    {
+      "sequence_number": 1,
+      "start_time": 0.0,
+      "end_time": 2.5,
+      "original_text": "Hello world",
+      "translation": "你好世界",
+      "phonetic": "[həˈloʊ wɜːrld]",
+      "grammar_analysis": [
+        {
+          "word": "hello",
+          "part_of_speech": "interjection",
+          "explanation": "A greeting",
+          "translation": "你好"
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### 4. 重新处理课时视频
+```bash
+POST /api/v1/lessons/{lesson_id}/reprocess?force=false
+```
+
+响应示例：
+```json
+{
+  "message": "课时重新处理已启动",
+  "video_id": 1,
+  "task_id": "abc-123",
+  "status": "pending"
+}
+```
+
+> **注意**：视频处理是异步的，使用 `GET /courses/{id}/progress` 查询处理进度。
 
 ## 开发指南
 

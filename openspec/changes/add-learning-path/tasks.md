@@ -44,11 +44,11 @@
 - [ ] 3.6 添加练习提交的测试。
 
 ## 4. 完整内容管理 (CMS) & 用户课程管理
-- [ ] 4.1 实现 **更新课程内容 (Update Content)** 接口。
+- [x] 4.1 实现 **更新课程内容 (Update Content)** 接口。
   - 修改 Title, Description, Cover Image。
-- [ ] 4.2 实现 **调整排序 (Reorder)** 接口。
+- [x] 4.2 实现 **调整排序 (Reorder)** 接口。
   - 拖拽排序 Unit 和 Lesson。
-- [ ] 4.3 实现 **删除内容 (Delete)** 接口 (软删除)。
+- [x] 4.3 实现 **删除内容 (Delete)** 接口 (软删除)。
   - 级联软删除 Unit -> Lesson。
 - [x] 4.4 实现 **获取课程列表 (Get Course List)** 接口。
   - `GET /api/v1/courses` (支持分页或全量)。

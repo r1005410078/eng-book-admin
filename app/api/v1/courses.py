@@ -200,18 +200,6 @@ async def upload_course(
     
     return new_course
 
-@router.get("/", response_model=List[CourseResponse])
-def get_courses(
-    skip: int = 0, 
-    limit: int = 100, 
-    db: Session = Depends(get_db)
-):
-    """
-    获取所有课程列表
-    """
-    courses = db.query(Course).offset(skip).limit(limit).all()
-    return courses
-
 @router.get("/{course_id}/progress", response_model=CourseProgressResponse)
 def get_course_progress(course_id: int, db: Session = Depends(get_db)):
     """
@@ -266,3 +254,24 @@ def modify_course(course_id: int, title: str = Form(None), description: str = Fo
     db.commit()
     db.refresh(course)
     return course
+
+from fastapi import Header
+from app.schemas.learning import LearningStatusResponse
+from app.services.learning_service import LearningService
+
+@router.get("/{course_id}/learning-status", response_model=LearningStatusResponse, summary="获取学习状态")
+def get_learning_status(
+    course_id: int,
+    x_user_id: int = Header(..., description="用户ID (Mock Auth)"),
+    db: Session = Depends(get_db)
+):
+    """
+    获取当前用户在该课程的学习状态概览
+    """
+    service = LearningService(db)
+    # Validate course
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+        
+    return service.get_course_learning_status(user_id=x_user_id, course_id=course_id)

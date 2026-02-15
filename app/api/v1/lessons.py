@@ -167,3 +167,33 @@ def get_lesson_subtitles(lesson_id: int, db: Session = Depends(get_db)):
         subtitle_count=len(subtitle_details),
         subtitles=subtitle_details
     )
+
+from fastapi import Header
+from app.schemas.learning import ProgressUpdate
+from app.services.learning_service import LearningService
+
+@router.post("/{lesson_id}/progress", summary="上报学习进度")
+def report_lesson_progress(
+    lesson_id: int,
+    progress: ProgressUpdate,
+    x_user_id: int = Header(..., description="用户ID (Mock Auth)"),
+    db: Session = Depends(get_db)
+):
+    """
+    上报课时学习进度 (无需鉴权，通过 Header 传递 user_id)
+    """
+    service = LearningService(db)
+    
+    # 验证 Lesson 存在
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    result = service.update_lesson_progress(
+        user_id=x_user_id,
+        lesson_id=lesson_id,
+        status=progress.status,
+        progress=progress.progress_percent,
+        position=progress.last_position_seconds
+    )
+    return {"message": "Progress updated", "status": result.status}

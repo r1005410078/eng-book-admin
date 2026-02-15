@@ -223,3 +223,75 @@ async def ask_syntax_question(
     except Exception as e:
         logger.error(f"Ask syntax failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to get answer from AI")
+
+from fastapi import Query
+from app.models.processing_task import ProcessingTask
+from app.models.video import VideoStatus
+from app.services.video_progress_service import VideoProgressService
+from app.tasks.video_tasks import process_uploaded_video
+from app.schemas.video import AsyncTaskResponse
+
+@router.post("/{lesson_id}/reprocess", status_code=202, summary="重新处理课时视频")
+def reprocess_lesson(
+    lesson_id: int,
+    force: bool = Query(False, description="强制重新处理"),
+    db: Session = Depends(get_db)
+):
+    """
+    触发课时视频重新处理
+    
+    - 清除旧的处理任务和字幕
+    - 触发 Celery 异步处理
+    - 立即返回 202 Accepted
+    
+    Args:
+        lesson_id: 课时 ID
+        force: 是否强制重新处理（即使正在处理中）
+    
+    Returns:
+        AsyncTaskResponse: 包含任务 ID 和状态
+    """
+    # 查询 Lesson
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    
+    if not lesson.video_id:
+        raise HTTPException(
+            status_code=400, 
+            detail="No video associated with this lesson"
+        )
+    
+    video_id = lesson.video_id
+    
+    # 查询 Video
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    # 检查是否有正在进行的任务
+    if not force and VideoProgressService.check_running_task(db, video_id):
+        raise HTTPException(
+            status_code=409,
+            detail="该课时视频正在处理中，请稍后再试或使用 force=true 强制重新处理"
+        )
+    
+    # 清除旧的任务记录和字幕
+    db.query(ProcessingTask).filter(ProcessingTask.video_id == video_id).delete()
+    db.query(Subtitle).filter(Subtitle.video_id == video_id).delete()
+    
+    # 更新状态
+    video.status = VideoStatus.PROCESSING
+    lesson.processing_status = "PROCESSING"
+    lesson.progress_percent = 0
+    db.commit()
+    
+    # 触发 Celery 任务
+    task = process_uploaded_video.delay(video.id)
+    
+    return AsyncTaskResponse(
+        message="课时重新处理已启动",
+        video_id=video_id,
+        task_id=task.id,
+        status="pending"
+    )

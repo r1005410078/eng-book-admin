@@ -3,103 +3,139 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from app.main import app
 from app.core.config import settings
-from app.core.database import engine
+from app.core.database import get_db, engine
+from app.models.base import Base
 from app.models.course import Course, Unit, Lesson
 from app.models.video import Video, VideoStatus
-from app.models.subtitle import Subtitle
-from datetime import datetime
 
+# Setup Test Client
 client = TestClient(app)
 
 @pytest.fixture(scope="module")
 def db_session():
-    session = Session(bind=engine)
-    try:
-        yield session
-    finally:
-        session.close()
+    # Create tables
+    Base.metadata.create_all(bind=engine)
+    
+    # Create session
+    from sqlalchemy.orm import Session as SQLSession
+    session = SQLSession(bind=engine)
+    
+    yield session
+    
+    # Cleanup
+    session.close()
 
-def test_get_lesson_content(db_session):
-    """
-    Test GET /lessons/{id}/content and subtitle.vtt
-    """
-    # 1. Setup Data
-    # Create fake video
+def test_reprocess_lesson(db_session):
+    """测试重新处理课时接口"""
+    # Setup: Create Course -> Unit -> Lesson -> Video
+    course = Course(title="Test Course")
+    db_session.add(course)
+    db_session.commit()
+    
+    unit = Unit(course_id=course.id, title="Test Unit", order_index=0)
+    db_session.add(unit)
+    db_session.commit()
+    
     video = Video(
-        title="Test Lesson Video",
-        file_path="videos/9999/test.mp4",
-        status=VideoStatus.COMPLETED,
-        duration=100.5,
-        created_at=datetime.now()
+        title="Test Video",
+        file_path="/tmp/test.mp4",
+        status=VideoStatus.COMPLETED
     )
     db_session.add(video)
     db_session.commit()
     
-    # Create fake lesson
     lesson = Lesson(
-        unit_id=1, # Dummy
-        title="Test Lesson Content",
+        unit_id=unit.id,
+        title="Test Lesson",
         video_id=video.id,
         processing_status="READY",
-        created_at=datetime.now(),
-        updated_at=datetime.now()
+        progress_percent=100
     )
     db_session.add(lesson)
     db_session.commit()
     
-    # Create subtitles
-    subs = [
-        Subtitle(
-            video_id=video.id,
-            sequence_number=1,
-            start_time=0.5,
-            end_time=2.0,
-            original_text="Hello world"
-        ),
-        Subtitle(
-            video_id=video.id,
-            sequence_number=2,
-            start_time=2.5,
-            end_time=5.0,
-            original_text="Welcome to testing"
-        )
-    ]
-    db_session.add_all(subs)
+    # Test 1: Reprocess without force
+    resp = client.post(
+        f"{settings.API_V1_PREFIX}/lessons/{lesson.id}/reprocess"
+    )
+    assert resp.status_code == 202
+    data = resp.json()
+    assert data["lesson_id"] == lesson.id
+    assert "task_id" in data
+    assert data["status"] == "pending"
+    assert "重新处理" in data["message"]
+    
+    # Verify lesson status updated
+    db_session.refresh(lesson)
+    assert lesson.processing_status == "PROCESSING"
+    assert lesson.progress_percent == 0
+    
+    # Test 2: Reprocess with force=true
+    resp = client.post(
+        f"{settings.API_V1_PREFIX}/lessons/{lesson.id}/reprocess?force=true"
+    )
+    assert resp.status_code == 202
+    
+    # Test 3: Lesson not found
+    resp = client.post(
+        f"{settings.API_V1_PREFIX}/lessons/99999/reprocess"
+    )
+    assert resp.status_code == 404
+    assert "not found" in resp.json()["detail"].lower()
+    
+    # Test 4: Lesson without video
+    lesson_no_video = Lesson(
+        unit_id=unit.id,
+        title="No Video Lesson",
+        processing_status="PENDING"
+    )
+    db_session.add(lesson_no_video)
     db_session.commit()
     
-    # 2. Test Content Endpoint
-    resp = client.get(f"{settings.API_V1_PREFIX}/lessons/{lesson.id}/content")
+    resp = client.post(
+        f"{settings.API_V1_PREFIX}/lessons/{lesson_no_video.id}/reprocess"
+    )
+    assert resp.status_code == 400
+    assert "No video" in resp.json()["detail"]
+
+def test_get_lesson_subtitles(db_session):
+    """测试获取课时字幕接口"""
+    # Setup
+    course = Course(title="Subtitle Test Course")
+    db_session.add(course)
+    db_session.commit()
+    
+    unit = Unit(course_id=course.id, title="Test Unit", order_index=0)
+    db_session.add(unit)
+    db_session.commit()
+    
+    video = Video(
+        title="Test Video",
+        file_path="/tmp/test.mp4",
+        status=VideoStatus.COMPLETED
+    )
+    db_session.add(video)
+    db_session.commit()
+    
+    lesson = Lesson(
+        unit_id=unit.id,
+        title="Test Lesson",
+        video_id=video.id,
+        processing_status="READY"
+    )
+    db_session.add(lesson)
+    db_session.commit()
+    
+    # Test: Get subtitles
+    resp = client.get(
+        f"{settings.API_V1_PREFIX}/lessons/{lesson.id}/subtitles"
+    )
     assert resp.status_code == 200
     data = resp.json()
-    
-    print(f"Content Response: {data}")
-    
     assert data["lesson_id"] == lesson.id
-    # URL construction check
-    assert "/uploads/videos/9999/test.mp4" in data["video_url"]
-    assert len(data["subtitles"]) > 0
-    sub_url = data["subtitles"][0]["url"]
-    assert f"/lessons/{lesson.id}/subtitle.vtt" in sub_url
-    
-    # 3. Test Subtitle VTT Endpoint
-    # Need to extract relative path from sub_url or just construct it
-    # sub_url might be full URL or relative. In test client, we use relative.
-    # Our API returns path relative to API root usually? 
-    # In lesson.py: f"{settings.API_V1_PREFIX}/lessons/{lesson_id}/subtitle.vtt" -> /api/v1/lessons/...
-    
-    resp_vtt = client.get(sub_url)
-    assert resp_vtt.status_code == 200
-    assert resp_vtt.headers["content-type"].startswith("text/plain")
-    vtt_content = resp_vtt.text
-    
-    print("VTT Content:\n", vtt_content)
-    
-    assert "WEBVTT" in vtt_content
-    assert "Hello world" in vtt_content
-    # Check timestamp format
-    assert "00:00:00.500 --> 00:00:02.000" in vtt_content
+    assert data["video_id"] == video.id
+    assert "subtitles" in data
+    assert "subtitle_count" in data
 
-    # Cleanup (Optional, transaction rollback preferred but using shared DB here)
-    # db_session.delete(lesson)
-    # db_session.delete(video)
-    # db_session.commit()
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

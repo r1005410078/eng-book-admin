@@ -43,26 +43,26 @@
   - 更新 Lesson 接口文档
 
 ## Phase 4: 清理和优化
-- [ ] 4.1 清理未使用的代码
+- [x] 4.1 清理未使用的代码
   - 检查是否有其他地方引用 video router
   - 清理未使用的 imports
 - [ ] 4.2 保留必要的服务层
   - ✅ 保留 `app/services/video_service.py`（内部使用）
   - ✅ 保留 `app/models/video.py`（Lesson 关联）
   - ✅ 保留 `app/schemas/video.py`（内部使用）
-- [ ] 4.3 更新测试
+- [x] 4.3 更新测试
   - 移除 Videos API 相关测试（如果有）
   - 确保 Lesson 测试覆盖新功能
-- [ ] 4.4 更新项目文档
+- [x] 4.4 更新项目文档
   - 更新 README
   - 更新 API 使用示例
 
 ## 验收检查清单
-- [ ] Lesson reprocess 接口正常工作
-- [ ] 所有单元测试通过
-- [ ] 所有集成测试通过
-- [ ] 无 `/videos/*` 路由存在
-- [ ] 代码审查通过
+- [x] Lesson reprocess 接口正常工作
+- [x] 所有单元测试通过
+- [x] 所有集成测试通过
+- [x] 无 `/videos/*` 路由存在
+- [x] 代码审查通过
 
 ## 注意事项
 1. **数据完整性** - 删除 Lesson 时确保级联删除 Video 和文件

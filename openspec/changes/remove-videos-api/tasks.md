@@ -5,14 +5,14 @@
   - 从 Lesson 关联的 Video 获取字幕
   - 返回完整的字幕列表（包含翻译、音标等）
   - ✅ 已在 `app/api/v1/lessons.py` 实现
-- [ ] 1.2 实现 `POST /api/v1/lessons/{lesson_id}/reprocess` 接口
+- [x] 1.2 实现 `POST /api/v1/lessons/{lesson_id}/reprocess` 接口
   - 支持 force 参数
   - 触发 Celery 任务重新处理视频
   - 返回任务 ID
 - [ ] 1.3 添加请求/响应 Schema
   - ReprocessRequest
   - ReprocessResponse
-- [ ] 1.4 添加单元测试
+- [x] 1.4 添加单元测试
   - 测试字幕获取
   - 测试重处理触发
 

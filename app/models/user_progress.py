@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Boolean, event
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Boolean, event, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.sql import func
@@ -18,6 +18,10 @@ class UserProgress(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
     
     lesson = relationship("Lesson", back_populates="user_progress")
+    
+    __table_args__ = (
+        UniqueConstraint('user_id', 'lesson_id', name='uq_user_lesson_progress'),
+    )
 
 class PracticeSubmission(Base):
     __tablename__ = "practice_submissions"

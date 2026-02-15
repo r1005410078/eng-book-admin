@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Boolean, event
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Boolean, event, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.sql import func
@@ -16,3 +16,7 @@ class TaskJournal(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     
     lesson = relationship("Lesson", back_populates="task_journals")
+
+    __table_args__ = (
+        Index('ix_task_journals_lesson_step', 'lesson_id', 'step_name'),
+    )

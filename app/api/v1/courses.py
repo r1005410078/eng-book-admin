@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status, BackgroundTasks, Header
 from sqlalchemy.orm import Session
 from app.core.database import get_db, SessionLocal
 from app.models.course import Course, Unit, Lesson
@@ -254,6 +254,66 @@ def modify_course(course_id: int, title: str = Form(None), description: str = Fo
     db.commit()
     db.refresh(course)
     return course
+
+@router.get("", response_model=List[CourseResponse], summary="获取课程列表")
+def get_courses(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """
+    获取所有课程列表 (支持分页)
+    """
+    courses = db.query(Course).order_by(Course.created_at.desc()).offset(skip).limit(limit).all()
+    return courses
+
+from app.models.user_course import UserCourse
+
+@router.post("/{course_id}/join", summary="加入/切换课程")
+def join_course(
+    course_id: int,
+    x_user_id: int = Header(..., description="User ID"),
+    db: Session = Depends(get_db)
+):
+    """
+    用户加入或切换到指定课程。
+    会将其设置为当前激活课程 (is_active=True)，并将该用户其他课程设为 inactive。
+    """
+    # Verify course exists
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    try:
+        # 1. Set all enrollments for this user to inactive
+        db.query(UserCourse).filter(UserCourse.user_id == x_user_id).update({"is_active": False})
+        
+        # 2. Check existing enrollment
+        enrollment = db.query(UserCourse).filter(
+            UserCourse.user_id == x_user_id,
+            UserCourse.course_id == course_id
+        ).first()
+        
+        if enrollment:
+            enrollment.is_active = True
+            enrollment.last_accessed_at = datetime.now()
+        else:
+            enrollment = UserCourse(
+                user_id=x_user_id,
+                course_id=course_id,
+                is_active=True,
+                joined_at=datetime.now(),
+                last_accessed_at=datetime.now()
+            )
+            db.add(enrollment)
+            
+        db.commit()
+        return {"message": "Joined course successfully", "course_id": course_id}
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Join course failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 from fastapi import Header
 from app.schemas.learning import LearningStatusResponse

@@ -32,3 +32,36 @@
 - **THEN** 前端并发请求 `/content` (可缓存) 和 `/progress` (不可缓存)
 - **AND** 系统返回带版本号 (ETag) 的字幕和语法数据
 - **AND** 前端组合数据进行渲染
+
+### Requirement: 获取课程列表及状态
+为了支持后台管理和用户浏览，系统 MUST 提供获取所有课程列表的接口，并包含课程的基本信息及当前的状态概览。
+
+- **获取课程列表 (List Courses)**: 提供 `GET /api/v1/courses/` 接口，支持分页查询。
+- **状态概览 (Status Overview)**: 返回列表中应包含每个课程的单元数、课时数以及处理进度状态（如：Processing, Completed）。
+
+#### Scenario: 浏览课程列表
+- **WHEN** 管理员或用户访问课程管理页面
+- **THEN** 调用 `GET /api/v1/courses/`
+- **AND** 系统返回课程列表，包含 ID, Title, Description, Cover, Tags, Units Count, Lessons Summary (Total/Processed)
+
+### Requirement: 完整的课程内容管理 (CMS)
+为了支持后台管理人员维护课程，系统 MUST 提供完整的 CRUD 接口，支持对课程、单元和课时的增删改查及排序。
+
+- **删除课程 (Delete Course)**: 提供 `DELETE /api/v1/courses/{id}` 接口。
+  - **Logic**: 执行级联软删除 (Soft Delete)，将课程及其下属所有单元、课时、任务日志标记为已删除。关联的视频文件应在后台异步清理 (GC)。
+- **删除课时 (Delete Lesson)**: 提供 `DELETE /api/v1/lessons/{id}` 接口。
+  - **Logic**: 软删除指定课时。如果单元因此为空，保留单元。
+- **添加课时 (Add Lesson)**: 提供 `POST /api/v1/units/{id}/lessons` 接口，支持上传单个视频文件作为新课时。
+  - **Logic**: 类似课程上传流程，创建课时 -> 创建视频占位 -> 异步处理 -> 触发任务。
+- **调整排序 (Reorder)**: 提供 `PATCH /api/v1/lessons/{id}` 接口，支持修改 `order_index` 或移动至其他单元 (`unit_id`)。
+
+#### Scenario: 删除过期课程
+- **WHEN** 管理员调用 `DELETE /api/v1/courses/101`
+- **THEN** 系统将 Course 101 及其 Unit, Lesson 状态标记为 DELETED
+- **AND** 返回 200 OK
+- **BUT** 物理文件暂时保留，等待 GC 任务回收
+
+#### Scenario: 向现有课程补充课时
+- **WHEN** 管理员调用 `POST /api/v1/units/5/lessons` 上传视频 `new_video.mp4`
+- **THEN** 系统在 Unit 5 下创建新课时
+- **AND** 立即开始后台转码和 AI 处理任务

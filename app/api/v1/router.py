@@ -2,7 +2,7 @@
 API v1 路由汇总
 """
 from fastapi import APIRouter
-from app.api.v1 import hello, openai, video, subtitle, courses, lessons, tasks
+from app.api.v1 import hello, openai, video, subtitle, courses, lessons, tasks, users
 
 # 创建v1版本的主路由
 api_router = APIRouter()
@@ -15,6 +15,7 @@ api_router.include_router(subtitle.router, prefix="/subtitles", tags=["Subtitles
 api_router.include_router(courses.router, prefix="/courses", tags=["Courses"])
 api_router.include_router(lessons.router, prefix="/lessons", tags=["Lessons"])
 api_router.include_router(tasks.router, prefix="/tasks", tags=["Tasks"])
+api_router.include_router(users.router, prefix="/users", tags=["Users"])
 
 # 未来可以添加更多路由
 # api_router.include_router(vocabulary.router, prefix="/vocabulary", tags=["单词本"])

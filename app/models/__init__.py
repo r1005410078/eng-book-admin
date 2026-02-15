@@ -9,6 +9,7 @@ from app.models.processing_task import ProcessingTask, TaskType, TaskStatus
 from app.models.course import Course, Unit, Lesson
 from app.models.task_journal import TaskJournal
 from app.models.user_progress import UserProgress, PracticeSubmission
+from app.models.user_course import UserCourse
 
 __all__ = [
     "Base",
@@ -25,5 +26,6 @@ __all__ = [
     "Lesson",
     "TaskJournal",
     "UserProgress",
-    "PracticeSubmission"
+    "PracticeSubmission",
+    "UserCourse"
 ]

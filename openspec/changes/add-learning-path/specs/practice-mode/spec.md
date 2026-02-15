@@ -21,3 +21,16 @@
 #### Scenario: 练习通过后完成课时
 - **WHEN** 用户在该课时的练习模式中达到及格分数（例如：>80%）
 - **THEN** 关联课时的状态更新为 `COMPLETED`
+
+### Requirement: 互动练习接口 (Practice Submission)
+为了支持前端 App 的练习模式，系统 MUST 提供提交练习结果和查询历史的 API。
+
+- **提交练习结果 (Submit Practice)**: 提供 `POST /api/v1/lessons/{id}/practice` 接口。
+  - **Type**: 支持多种练习类型（SHADOWING, LISTENING, FILL_BLANK）。
+  - **Body**: `{ "type": "SHADOWING", "score": 85, "audio_url": "optional_upload", "details": {...} }`
+  - **Logic**: 
+    - 记录到 `practice_submissions` 表。
+    - 如果分数 >= Passing Score，可能触发 Lesson Progress = COMPLETED (如果是练习驱动模式)。
+
+- **查询练习历史 (Practice History)**: 提供 `GET /api/v1/lessons/{id}/practice` 接口。
+  - **Response**: List of submissions ordered by time desc.

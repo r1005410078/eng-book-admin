@@ -37,6 +37,9 @@ def test_upload_course_flow(mock_process_task, mock_file_handler, db_session):
     """
     # Mock behaviors
     mock_file_handler.save_uploaded_file.return_value = "uploads/test.mp4"
+    mock_file_handler.save_file_stream.return_value = "uploads/test.mp4"
+    mock_file_handler.get_file_path.return_value = "/tmp/uploads/test.mp4"
+    mock_file_handler.get_file_size.return_value = 1024
     mock_process_task.delay.return_value = None
     
     # Mock files
@@ -138,3 +141,50 @@ def test_get_course_progress(db_session):
     lesson_prog = data["lessons"][0]
     assert lesson_prog["processing_status"] == "PROCESSING"
     assert len(lesson_prog["logs"]) >= 1
+
+from app.models.user_course import UserCourse
+
+def test_user_courses_flow(db_session):
+    # Setup
+    c1 = Course(title="C1")
+    c2 = Course(title="C2")
+    db_session.add_all([c1, c2])
+    db_session.commit()
+    
+    user_id = 777
+    
+    # 1. Join C1
+    resp = client.post(
+        f"{settings.API_V1_PREFIX}/courses/{c1.id}/join",
+        headers={"x-user-id": str(user_id)}
+    )
+    assert resp.status_code == 200
+    
+    # 2. Verify Current Course
+    resp = client.get(
+        f"{settings.API_V1_PREFIX}/users/current-course",
+        headers={"x-user-id": str(user_id)}
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == c1.id
+    
+    # 3. Join C2
+    resp = client.post(
+        f"{settings.API_V1_PREFIX}/courses/{c2.id}/join",
+        headers={"x-user-id": str(user_id)}
+    )
+    assert resp.status_code == 200
+    
+    # 4. Verify Current is C2
+    resp = client.get(
+        f"{settings.API_V1_PREFIX}/users/current-course",
+        headers={"x-user-id": str(user_id)}
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == c2.id
+    
+    # 5. Verify C1 is inactive in DB
+    uc1 = db_session.query(UserCourse).filter_by(user_id=user_id, course_id=c1.id).first()
+    assert uc1.is_active == False

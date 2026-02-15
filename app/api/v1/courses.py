@@ -200,6 +200,18 @@ async def upload_course(
     
     return new_course
 
+@router.get("/", response_model=List[CourseResponse])
+def get_courses(
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db)
+):
+    """
+    获取所有课程列表
+    """
+    courses = db.query(Course).offset(skip).limit(limit).all()
+    return courses
+
 @router.get("/{course_id}/progress", response_model=CourseProgressResponse)
 def get_course_progress(course_id: int, db: Session = Depends(get_db)):
     """

@@ -50,9 +50,9 @@
   - 拖拽排序 Unit 和 Lesson。
 - [ ] 4.3 实现 **删除内容 (Delete)** 接口 (软删除)。
   - 级联软删除 Unit -> Lesson。
-- [ ] 4.4 实现 **获取课程列表 (Get Course List)** 接口。
+- [x] 4.4 实现 **获取课程列表 (Get Course List)** 接口。
   - `GET /api/v1/courses` (支持分页或全量)。
-- [ ] 4.5 实现 **当前学习课程 (Current Course)** 逻辑。
+- [x] 4.5 实现 **当前学习课程 (Current Course)** 逻辑。
   - 限制: 用户同时只能“正在学习”一个课程。
   - `POST /api/v1/courses/{id}/join`: 加入/切换课程。
   - `GET /api/v1/users/current-course`: 获取当前正在学的课程。
